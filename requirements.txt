@@ -1,0 +1,17 @@
+# UI & Dashboard
+streamlit>=1.40.0
+
+# In-Memory Streaming Database
+duckdb>=1.1.0
+
+# Machine Learning & Data Processing
+scikit-learn>=1.4.0
+pandas>=2.2.0
+numpy>=1.26.0
+
+# LLM Agent & Environment
+groq>=0.15.0
+python-dotenv>=1.0.1
+
+# Interactive Visualizations
+plotly>=5.20.0
