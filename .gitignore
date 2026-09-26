@@ -1,0 +1,21 @@
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Environment variables & secrets
+.env
+*.env
+
+# Python cache & compiled files
+__pycache__/
+*.pyc
+
+# Local databases
+*.duckdb
+*.duckdb.wal
+*.sqlite3
+*.db
+
+# VS Code settings
+.vscode/
