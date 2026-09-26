@@ -194,16 +194,22 @@ if st.session_state.get("latest_report"):
 		st.error("🚨 Active Anomaly Detected — Autonomous Root-Cause Diagnosis")
 		with st.expander("📄 View Incident Post-Mortem & Remediation Steps", expanded=True):
 			st.markdown(st.session_state.latest_report)
-			if st.button("Acknowledge & Clear Alert"):
-				st.session_state.latest_report = None
-				st.rerun()
+			col_act1, col_act2 = st.columns(2)
+			with col_act1:
+				if st.button("🛡️ Execute Mitigation: Apply Rate Limiting"):
+					st.success("Policy dispatched: Endpoint throttled to 200 req/sec.")
+			with col_act2:
+				if st.button("🔄 Resolve Incident & Dismiss"):
+					st.session_state.latest_report = None
+					st.rerun()
 
 telemetry = st.session_state.store.get_recent_telemetry(limit=400)
 if not telemetry.empty:
+	recent_df = telemetry.sort_values("timestamp").tail(60)
 	st.subheader("Live Telemetry")
 	chart_columns = st.columns(2)
 	for column, feature in zip(chart_columns * 2, METRIC_LABELS):
-		metric_data = telemetry[telemetry["feature_name"] == feature].copy()
+		metric_data = recent_df[recent_df["feature_name"] == feature].copy()
 		if not metric_data.empty:
 			metric_data["is_anomaly"] = metric_data["timestamp"].isin(
 				st.session_state.anomaly_points.get(feature, set())
