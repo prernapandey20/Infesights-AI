@@ -60,7 +60,9 @@ def create_telemetry_chart(
 
 def anomalous_features(result: dict) -> list[str]:
 	features = [
-		name for name, deviation in result["deviations"].items() if deviation >= 2.5
+		name
+		for name, deviation in result["deviations"].items()
+		if deviation >= result.get("deviation_threshold", 2.5)
 	]
 	if result["is_anomaly"] and not features:
 		features = [max(result["deviations"], key=result["deviations"].get)]
@@ -234,7 +236,7 @@ def process_next_point() -> None:
 	st.toast("Anomaly detected in the ingested data", icon="⚠️")
 	with st.spinner("Preparing an evidence-based data-domain assessment..."):
 		st.session_state.latest_report = investigate_event(anomaly_event, baseline_stats)
-	threshold = st.session_state.alert_threshold
+	threshold = result["alert_threshold"]
 	if result["confidence"] >= threshold:
 		alert_id = str(point["timestamp"])
 		if st.session_state.last_alert_id != alert_id:
@@ -305,30 +307,16 @@ except Exception as error:
 	st.stop()
 
 initialize_dataset(prepared_frame, numeric_features, signature)
-st.session_state.setdefault("alert_threshold", 95)
 
 with st.sidebar.expander("⚙️ Streaming & Replay Controls", expanded=True):
-	st.toggle("Stream rows", key="streaming_active")
-	interval = st.slider(
-		"Interval (sec)",
-		min_value=0.1,
-		max_value=2.0,
-		value=0.8,
-	step=0.1,
+	st.toggle("Live stream mode", key="streaming_active")
+	st.caption(
+		"Static uploads run batch detection immediately. Live mode ingests rows automatically."
 	)
-
-with st.sidebar.expander("💥 Chaos Engineering", expanded=False):
-	selected_feature = st.selectbox("Feature to perturb", options=numeric_features)
-	if st.button("Inject Anomaly"):
-		st.session_state.producer.inject_anomaly(selected_feature, magnitude=8.0)
+	interval = 0.8
 
 with st.sidebar.expander("🔔 Webhook & Alerting", expanded=False):
-	st.slider(
-		"Webhook confidence threshold",
-		min_value=50,
-		max_value=99,
-		key="alert_threshold",
-	)
+	st.caption("Alert confidence is calibrated from the top 2% of baseline deviations.")
 	if os.getenv("INFESIGHTS_WEBHOOK_URL"):
 		st.caption("Webhook dispatcher configured")
 	else:
@@ -363,28 +351,30 @@ def render_dashboard() -> None:
 	live_tab, drift_tab = st.tabs(["Live analysis", "Feature drift"])
 	with live_tab:
 		latest = st.session_state.latest_point
-		if st.session_state.latest_report:
-			st.error("Anomalies detected in the current dataset")
-			st.markdown(st.session_state.latest_report)
-			st.download_button(
-				"Export Executive Post-Mortem (Markdown)",
-				data=st.session_state.latest_report.encode("utf-8"),
-				file_name="infesights_executive_postmortem.md",
-				mime="text/markdown",
-				key=f"markdown_{signature}",
-			)
-			st.download_button(
-				"Export Executive Post-Mortem (PDF)",
-				data=create_executive_pdf(st.session_state.latest_report),
-				file_name="infesights_executive_postmortem.pdf",
-				mime="application/pdf",
-				key=f"pdf_{signature}",
-			)
-			if st.session_state.alert_status:
-				st.caption(st.session_state.alert_status)
-			if st.button("Dismiss report"):
-				st.session_state.latest_report = None
-				st.rerun()
+		if st.session_state.get("latest_report"):
+			st.markdown("---")
+			st.subheader("💡 Automated AI Insight & Summary")
+			with st.container(border=True):
+				st.markdown(st.session_state.latest_report)
+				st.download_button(
+					"Export Executive Post-Mortem (Markdown)",
+					data=st.session_state.latest_report.encode("utf-8"),
+					file_name="infesights_executive_postmortem.md",
+					mime="text/markdown",
+					key=f"markdown_{signature}",
+				)
+				st.download_button(
+					"Export Executive Post-Mortem (PDF)",
+					data=create_executive_pdf(st.session_state.latest_report),
+					file_name="infesights_executive_postmortem.pdf",
+					mime="application/pdf",
+					key=f"pdf_{signature}",
+				)
+				if st.session_state.alert_status:
+					st.caption(st.session_state.alert_status)
+				if st.button("👍 Got It / Dismiss Summary"):
+					st.session_state.latest_report = None
+					st.rerun()
 
 		if st.session_state.latest_sql_result:
 			with st.expander("Agent SQL investigation", expanded=True):

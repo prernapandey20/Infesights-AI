@@ -30,51 +30,47 @@ class RootCauseAgent:
 		if self.client is None:
 			return "Diagnostic agent unavailable: GROQ_API_KEY is not configured."
 
-		context = self._format_context(recent_context_df)
+		anomalies = anomaly_event.get("features", {})
+		anomalous_feature, anomaly_details = next(iter(anomalies.items()), ("Unknown metric", {}))
+		anomalous_value = anomaly_details.get("value", "Not provided")
+		baseline_mean = baseline_stats.get(anomalous_feature, {}).get("mean", "Not provided")
+		context_summary = self._format_context(
+			{
+				"row_context": anomaly_event.get("row_context", {}),
+				"recent_telemetry": self._format_context(recent_context_df),
+				"sql_investigation": self._format_context(sql_results),
+				"other_anomalies": anomalies,
+			}
+		)
 		user_prompt = f"""
-Incident timestamp:
-{anomaly_event.get('timestamp', 'Not provided')}
+An unusual event was detected in the data. Here are the details:
 
-Detected anomalous features and values:
-{json.dumps(anomaly_event, indent=2, default=str)}
+- Metric Name: {anomalous_feature}
+- Current Value: {anomalous_value}
+- Normal Average Value: {baseline_mean}
+- Impacted Schema/Context: {context_summary}
 
-Baseline running averages and standard deviations:
-{json.dumps(baseline_stats, indent=2, default=str)}
+Please generate an Incident Summary following this exact simple structure:
 
-Recent telemetry context:
-{context}
+### 📢 What Happened?
+(1-2 plain sentences explaining what went wrong in plain human language.)
 
-DuckDB investigation results:
-{self._format_context(sql_results)}
+### ❓ Why Did It Happen?
+(1-2 sentences giving the most likely root cause or real-world reason for this spike.)
 
-Computed Z-scores or deviation deltas should be used to identify the triggering metric.
-Treat query results as evidence, not proof of causality.
+### 💼 Business Impact
+(1 sentence explaining how this affects business operations, customers, or costs.)
+
+### ✅ What Should We Do?
+1. [First simple action step]
+2. [Second simple action step]
 """.strip()
 
 		system_prompt = """
-You are an executive data analyst and causal-investigation specialist.
-Infer the dataset's likely domain from its column names, values, and supplied context.
-Analyze relationships among the anomalous features and identify a plausible root cause.
-The data may describe e-commerce, finance, supply chains, IoT, or another domain.
-Do not assume infrastructure metrics, invent business context, or state correlation as
-proof of causation. Separate observed evidence from hypotheses and tailor next actions
-to the inferred domain. Return concise Markdown in this format:
-### Executive Anomaly Brief
-- **Likely data domain:** [domain and confidence, or unknown]
-- **Business impact:** [evidence-based impact or what remains unknown]
-- **Anomalous features:** [names, values, and deviations]
-#### Root-Cause Assessment
-[Evidence, plausible explanation, and uncertainty]
-#### Severity and Confidence
-- **Severity:** [CRITICAL / HIGH / MEDIUM / LOW, evidence-based]
-- **Confidence:** [percent and basis]
-#### SQL Investigation & Audit
-- **Query:** [read-only query used, or state that SQL investigation was unavailable]
-- **Finding:** [what returned rows support, or limitations]
-#### Recommended Actions
-1. [Immediate validation or containment]
-2. [Domain-specific mitigation playbook]
-3. [Preventative control or monitoring]
+You are a Lead Data Analyst and Business Intelligence Advisor.
+Your job is to explain data spikes and anomalies in simple, clear, plain English.
+Avoid complex statistical jargon like 'z-score', 'standard deviation', or 'isolation forest scores'.
+Write so that a non-technical business manager or everyday user can instantly understand what happened, why it matters, and what to do next.
 """.strip()
 
 		try:

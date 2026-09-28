@@ -17,6 +17,8 @@ class AnomalyDetector:
 		self.feature_names: list[str] = []
 		self.baseline_means: dict[str, float] = {}
 		self.baseline_stds: dict[str, float] = {}
+		self.deviation_threshold = 2.5
+		self.alert_confidence_threshold = 98.0
 		self._is_fitted = False
 
 	def fit_initial_baseline(self, warmup_data: Iterable[dict[str, Any]]) -> None:
@@ -42,7 +44,21 @@ class AnomalyDetector:
 		self.baseline_stds = dict(
 			zip(self.feature_names, np.maximum(values.std(axis=0), np.finfo(float).eps))
 		)
+		baseline_stds = np.maximum(values.std(axis=0), np.finfo(float).eps)
+		baseline_deviations = np.max(
+			np.abs((values - values.mean(axis=0)) / baseline_stds),
+			axis=1,
+		)
+		self.deviation_threshold = float(max(2.5, np.quantile(baseline_deviations, 0.98)))
 		self.model.fit(values)
+		baseline_confidences = np.clip(
+			(0.5 - self.model.decision_function(values)) * 100,
+			0,
+			100,
+		)
+		self.alert_confidence_threshold = float(
+			np.clip(np.quantile(baseline_confidences, 0.98), 50, 99)
+		)
 		self.buffer.clear()
 		self.buffer.extend(numeric_records[-100:])
 		self._is_fitted = True
@@ -72,13 +88,15 @@ class AnomalyDetector:
 		is_forest_anomaly = bool(
 			self.model.predict(values)[0] == -1 and decision_score < -0.15
 		)
-		is_extreme_outlier = bool(max(deviations.values()) >= 5.0)
+		is_extreme_outlier = bool(max(deviations.values()) >= self.deviation_threshold)
 		if update_buffer:
 			self.buffer.append(numeric_record)
 
 		return {
 			"is_anomaly": is_forest_anomaly or is_extreme_outlier,
 			"confidence": confidence,
+			"alert_threshold": self.alert_confidence_threshold,
+			"deviation_threshold": self.deviation_threshold,
 			"deviations": deviations,
 		}
 

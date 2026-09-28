@@ -32,6 +32,20 @@ class DynamicPipelineTests(unittest.TestCase):
 		self.assertEqual(len(csv_frame), 2)
 		self.assertEqual(len(json_frame), 1)
 
+	def test_identifier_columns_are_not_metrics(self) -> None:
+		frame = pd.DataFrame(
+			{
+				"Row Id": [1, 2, 3],
+				"Postal Code": [10001, 10002, 10003],
+				"customer_uuid": ["a", "b", "c"],
+				"order_value": [12.5, 15.0, 14.0],
+			}
+		)
+
+		_, features = prepare_dataset(frame)
+
+		self.assertEqual(features, ["order_value"])
+
 	def test_legacy_csv_falls_back_to_latin1(self) -> None:
 		frame = load_dataset(b"name\nAndr\xe9\n", "legacy.csv")
 

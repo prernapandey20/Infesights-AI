@@ -3,9 +3,33 @@ from __future__ import annotations
 from datetime import datetime
 from io import BytesIO
 import json
+import re
 
 import numpy as np
 import pandas as pd
+
+
+_IDENTIFIER_NAME_PATTERN = re.compile(
+	r"(?:^|_)(?:id|uuid|key|index|postal|zip|zipcode|rowid|row)(?:$|_)"
+)
+
+
+def is_metric_column(column: str, series: pd.Series) -> bool:
+	normalized_name = re.sub(r"[^a-z0-9]+", "_", column.strip().lower()).strip("_")
+	if _IDENTIFIER_NAME_PATTERN.search(normalized_name):
+		return False
+
+	values = series.dropna()
+	if not len(values):
+		return False
+	unique_ratio = values.nunique() / len(values)
+	if unique_ratio >= 0.98 and (
+		"code" in normalized_name
+		or normalized_name.endswith("number")
+		or normalized_name.endswith("no")
+	):
+		return False
+	return True
 
 
 def load_dataset(data: bytes, filename: str) -> pd.DataFrame:
@@ -62,7 +86,7 @@ def prepare_dataset(frame: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
 			continue
 		values = pd.to_numeric(prepared[column], errors="coerce")
 		values = values.replace([np.inf, -np.inf], np.nan)
-		if values.notna().any():
+		if values.notna().any() and is_metric_column(str(column), values):
 			prepared[column] = values.fillna(values.median()).astype(float)
 			numeric_features.append(str(column))
 

@@ -14,9 +14,11 @@ your own records. JSON can be an array of objects or an object containing a `rec
 or `data` array. Numerical columns are inferred automatically; columns named `timestamp`,
 `datetime`, `date`, or `time` are used as the event time when present.
 
-The stream cycles through the loaded rows. Use **Inject anomaly** to perturb any detected
-numeric feature and observe its chart marker and generated analysis. Set `GROQ_API_KEY`
-in the environment to enable SQL-assisted AI root-cause reports. The agent's DuckDB
+Numeric identifier columns such as row IDs, postal codes, and UUIDs are ignored automatically.
+Static uploads run batch anomaly detection immediately; enable live stream mode to cycle
+through incoming rows at a natural cadence. Alert thresholds are calibrated from the top 2%
+of baseline deviations. Set `GROQ_API_KEY` in the environment to enable SQL-assisted AI
+root-cause reports. The agent's DuckDB
 investigation is restricted to read-only `SELECT` queries over the uploaded rows.
 
 ## Analytics and Integrations
@@ -25,7 +27,7 @@ investigation is restricted to read-only `SELECT` queries over the uploaded rows
 	the incoming holdout/stream window using the Kolmogorov-Smirnov test and PSI.
 - **Executive exports:** Anomaly reports can be downloaded as Markdown or PDF.
 - **Webhook alerts:** Set `INFESIGHTS_WEBHOOK_URL` to receive JSON alerts when anomaly
-	confidence reaches the configurable sidebar threshold (95% by default).
+	confidence reaches the automatically calibrated baseline threshold.
 - **Counterfactual review:** Adjust anomalous numeric values and re-evaluate risk without
 	mutating the live detector's training buffer.
 
