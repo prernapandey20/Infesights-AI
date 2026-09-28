@@ -282,10 +282,9 @@ st.set_page_config(
 st.title("Infesights AI — Universal Data Intelligence")
 st.caption("Investigate, monitor, and explain anomalies in any tabular dataset")
 
-with st.sidebar:
-	st.title("Infesights AI")
-	st.caption("Dynamic schema ingestion")
-	uploaded_file = st.file_uploader("Upload CSV or JSON", type=["csv", "json"])
+st.sidebar.title("Infesights AI")
+st.sidebar.caption("Dynamic Schema Ingestion")
+uploaded_file = st.sidebar.file_uploader("Upload CSV or JSON", type=["csv", "json"])
 
 try:
 	if uploaded_file is None:
@@ -308,19 +307,34 @@ except Exception as error:
 initialize_dataset(prepared_frame, numeric_features, signature)
 st.session_state.setdefault("alert_threshold", 95)
 
-with st.sidebar:
-	st.divider()
+with st.sidebar.expander("⚙️ Streaming & Replay Controls", expanded=True):
 	st.toggle("Stream rows", key="streaming_active")
-	interval = st.slider("Interval", 0.2, 2.0, 0.8, 0.1, format="%.1fs")
-	selected_feature = st.selectbox("Feature to perturb", numeric_features)
-	if st.button("Inject anomaly"):
+	interval = st.slider(
+		"Interval (sec)",
+		min_value=0.1,
+		max_value=2.0,
+		value=0.8,
+	step=0.1,
+	)
+
+with st.sidebar.expander("💥 Chaos Engineering", expanded=False):
+	selected_feature = st.selectbox("Feature to perturb", options=numeric_features)
+	if st.button("Inject Anomaly"):
 		st.session_state.producer.inject_anomaly(selected_feature, magnitude=8.0)
-	st.slider("Webhook confidence threshold", 50, 100, key="alert_threshold")
+
+with st.sidebar.expander("🔔 Webhook & Alerting", expanded=False):
+	st.slider(
+		"Webhook confidence threshold",
+		min_value=50,
+		max_value=99,
+		key="alert_threshold",
+	)
 	if os.getenv("INFESIGHTS_WEBHOOK_URL"):
 		st.caption("Webhook dispatcher configured")
 	else:
 		st.caption("Set INFESIGHTS_WEBHOOK_URL to enable notifications")
-	st.caption(f"{len(prepared_frame):,} rows · {len(numeric_features)} numeric features")
+
+st.sidebar.caption(f"{len(prepared_frame):,} rows · {len(numeric_features)} numeric features")
 
 streaming_active = st.session_state.streaming_active
 
