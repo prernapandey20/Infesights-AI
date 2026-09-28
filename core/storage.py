@@ -1,4 +1,6 @@
 from datetime import datetime
+import json
+import re
 from uuid import uuid4
 
 import duckdb
@@ -8,6 +10,10 @@ import pandas as pd
 class TelemetryStore:
 	def __init__(self) -> None:
 		self.connection = duckdb.connect(":memory:")
+		self.connection.execute("SET enable_external_access = false")
+		self.connection.execute(
+			"CREATE TABLE event_rows (timestamp TIMESTAMP, row_json JSON)"
+		)
 		self.connection.execute(
 			"""
 			CREATE TABLE telemetry_stream (
@@ -31,6 +37,41 @@ class TelemetryStore:
 			)
 			"""
 		)
+
+	def insert_event(self, record: dict) -> None:
+		self.connection.execute(
+			"INSERT INTO event_rows (timestamp, row_json) VALUES (?, CAST(? AS JSON))",
+			[record["timestamp"], json.dumps(record, default=str)],
+		)
+
+	def execute_readonly_query(self, query: str, limit: int = 100) -> pd.DataFrame:
+		statements = duckdb.extract_statements(query)
+		if len(statements) != 1 or statements[0].type != duckdb.StatementType.SELECT:
+			raise ValueError("Only one read-only SELECT statement is allowed")
+		if not re.search(
+			r"\bFROM\s+(?:main\.)?\"?recent_event_rows\"?(?:\s|$)",
+			query,
+			re.IGNORECASE,
+		):
+			raise ValueError("Queries must read from the recent_event_rows table")
+		if limit < 1:
+			raise ValueError("limit must be positive")
+		recent_rows = self.connection.execute(
+			"SELECT timestamp, row_json FROM event_rows "
+			"ORDER BY timestamp DESC LIMIT 500"
+		).fetchall()
+		query_connection = duckdb.connect(":memory:")
+		try:
+			query_connection.execute("SET enable_external_access = false")
+			query_connection.execute(
+				"CREATE TABLE recent_event_rows (timestamp TIMESTAMP, row_json JSON)"
+			)
+			query_connection.executemany(
+				"INSERT INTO recent_event_rows VALUES (?, ?)", recent_rows
+			)
+			return query_connection.execute(query).fetchdf().head(limit)
+		finally:
+			query_connection.close()
 
 	def insert_telemetry(
 		self,

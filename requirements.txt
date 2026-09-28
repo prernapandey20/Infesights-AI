@@ -8,6 +8,8 @@ duckdb>=1.1.0
 scikit-learn>=1.4.0
 pandas>=2.2.0
 numpy>=1.26.0
+scipy>=1.11.0
+reportlab>=4.2.0
 
 # LLM Agent & Environment
 groq>=0.15.0

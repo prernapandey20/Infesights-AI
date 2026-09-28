@@ -1,23 +1,22 @@
-import time
-
 from core.stream_producer import StreamProducer
 from core.detector import AnomalyDetector
-from core.storage import TelemetryStore
+from core.data_pipeline import create_demo_dataset, prepare_dataset
 
 
-store = TelemetryStore()
-producer = StreamProducer()
+frame, features = prepare_dataset(create_demo_dataset())
+records = frame.to_dict(orient="records")
+producer = StreamProducer(records, features)
 detector = AnomalyDetector()
 
-# Warmup baseline
-warmup = [producer.get_next_point() for _ in range(50)]
-detector.fit_initial_baseline(warmup)
+detector.fit_initial_baseline(records)
 
-# Stream 5 points and inject chaos
 print("Streaming test...")
 for i in range(5):
     if i == 3:
-        producer.inject_anomaly(feature="api_latency_ms", magnitude=8.0)
+        producer.inject_anomaly(feature=features[0], magnitude=8.0)
     point = producer.get_next_point()
     result = detector.predict(point)
-    print(f"Tick {i}: Anomaly={result['is_anomaly']} | Conf={result['confidence']:.1f}%")
+    print(
+        f"Tick {i}: Anomaly={result['is_anomaly']} | "
+        f"Conf={result['confidence']:.1f}%"
+    )

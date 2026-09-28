@@ -26,8 +26,9 @@ class AnomalyDetector:
 
 		self.feature_names = [
 			name
-			for name, value in records[0].items()
-			if isinstance(value, Real) and not isinstance(value, bool)
+			for name in records[0]
+			if isinstance(records[0][name], Real)
+			and not isinstance(records[0][name], bool)
 		]
 		if not self.feature_names:
 			raise ValueError("warmup_data must contain numeric metrics")
@@ -46,7 +47,11 @@ class AnomalyDetector:
 		self.buffer.extend(numeric_records[-100:])
 		self._is_fitted = True
 
-	def predict(self, record_dict: dict[str, Any]) -> dict[str, Any]:
+	def predict(
+		self,
+		record_dict: dict[str, Any],
+		update_buffer: bool = True,
+	) -> dict[str, Any]:
 		if not self._is_fitted:
 			raise RuntimeError("fit_initial_baseline must be called before predict")
 
@@ -58,17 +63,18 @@ class AnomalyDetector:
 		decision_score = float(self.model.decision_function(values)[0])
 		confidence = float(np.clip((0.5 - decision_score) * 100, 0, 100))
 		deviations = {
-			name: abs(
+			name: float(abs(
 				(numeric_record[name] - self.baseline_means[name])
 				/ self.baseline_stds[name]
-			)
+			))
 			for name in self.feature_names
 		}
 		is_forest_anomaly = bool(
 			self.model.predict(values)[0] == -1 and decision_score < -0.15
 		)
 		is_extreme_outlier = bool(max(deviations.values()) >= 5.0)
-		self.buffer.append(numeric_record)
+		if update_buffer:
+			self.buffer.append(numeric_record)
 
 		return {
 			"is_anomaly": is_forest_anomaly or is_extreme_outlier,
@@ -80,8 +86,11 @@ class AnomalyDetector:
 		missing = [name for name in self.feature_names if name not in record]
 		if missing:
 			raise ValueError(f"Record is missing features: {', '.join(missing)}")
-		return {
-			name: float(record[name])
+		nonnumeric = [
+			name
 			for name in self.feature_names
-			if isinstance(record[name], Real) and not isinstance(record[name], bool)
-		}
+			if not isinstance(record[name], Real) or isinstance(record[name], bool)
+		]
+		if nonnumeric:
+			raise ValueError(f"Record contains non-numeric features: {', '.join(nonnumeric)}")
+		return {name: float(record[name]) for name in self.feature_names}
