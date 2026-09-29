@@ -23,65 +23,150 @@ def apply_aeux_theme() -> None:
 	st.markdown(
 		"""
 		<style>
+		/* 1. Global Outer Slate Canvas */
 		.stApp {
-			background-color: #1a3832 !important;
+			background-color: #0b1f1a !important;
 		}
+
+		header[data-testid="stHeader"] {
+			background-color: transparent !important;
+		}
+
+		/* 2. Main Outer Spacing for Card Margins */
+		[data-testid="stMain"] {
+			background-color: #0b1f1a !important;
+			padding: 1.5rem 2.5rem !important;
+		}
+
+		/* 3. Off-White Floating Card Container */
 		[data-testid="stMainBlockContainer"] {
-			background-color: #f7f9f8 !important;
-			border-radius: 24px !important;
-			padding: 2.5rem !important;
-			margin-top: 1rem !important;
-			margin-bottom: 1rem !important;
-			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+			background-color: #f5f8f6 !important;
+			border-radius: 28px !important;
+			padding: 3rem 3.5rem !important;
+			margin-top: 0.5rem !important;
+			margin-bottom: 2rem !important;
+			box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35) !important;
 		}
+
+		/* 4. Left Sidebar Clean Emerald */
 		[data-testid="stSidebar"] {
-			background-color: #0b221d !important;
-			color: #ffffff !important;
+			background-color: #0b1f1a !important;
+			border-right: none !important;
 		}
+
 		[data-testid="stSidebar"] * {
-			color: #e0e8e5 !important;
+			color: #d1deda !important;
 		}
+
+		/* 5. Custom Sidebar File Uploader */
+		[data-testid="stFileUploader"] {
+			background-color: #123129 !important;
+			border: 1px dashed #245043 !important;
+			border-radius: 16px !important;
+			padding: 10px !important;
+		}
+
+		/* 6. Pure White Metric Cards */
 		div[data-testid="stMetric"], .aeux-card {
 			background-color: #ffffff !important;
-			border-radius: 16px !important;
-			padding: 18px 22px !important;
-			border: 1px solid #e1e8e5 !important;
-			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03) !important;
+			border-radius: 20px !important;
+			padding: 22px 26px !important;
+			border: 1px solid #e1e9e5 !important;
+			box-shadow: 0 4px 18px rgba(0, 0, 0, 0.03) !important;
 		}
-		[data-testid="stMetricValue"] {
-			color: #0f1d19 !important;
+
+		[data-testid="stMetricValue"], [data-testid="stMetricValue"] * {
+			color: #0d1a16 !important;
+			font-weight: 800 !important;
+			font-size: 2.2rem !important;
+		}
+
+		[data-testid="stMetricLabel"], [data-testid="stMetricLabel"] * {
+			color: #5c726a !important;
 			font-weight: 700 !important;
-			font-size: 2rem !important;
-		}
-		[data-testid="stMetricLabel"] {
-			color: #5d706a !important;
 			font-size: 0.85rem !important;
-			font-weight: 600 !important;
-			text-transform: uppercase !important;
 			letter-spacing: 0.5px !important;
 		}
-		.stButton > button {
-			background-color: #0f1d19 !important;
+
+		/* 7. Typography Fixes */
+		[data-testid="stMain"] h1,
+		[data-testid="stMain"] h2,
+		[data-testid="stMain"] h3,
+		[data-testid="stMain"] h4,
+		[data-testid="stMain"] h5,
+		[data-testid="stMain"] p,
+		[data-testid="stMain"] span,
+		[data-testid="stMain"] label,
+		[data-testid="stMain"] div[data-testid="stMarkdownContainer"] *,
+		[data-testid="stMain"] [data-testid="stCaptionContainer"] * {
+			color: #0d1a16 !important;
+			font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+		}
+
+		/* 8. Fix Unreadable Download / Action Buttons */
+		.stButton > button,
+		div[data-testid="stDownloadButton"] > button {
+			background-color: #0d1a16 !important;
 			color: #ffffff !important;
-			border-radius: 10px !important;
+			border-radius: 12px !important;
 			border: none !important;
-			padding: 10px 20px !important;
+			padding: 12px 24px !important;
 			font-weight: 600 !important;
 			transition: all 0.2s ease !important;
 		}
-		.stButton > button:hover {
-			background-color: #20e070 !important;
-			color: #0f1d19 !important;
+
+		.stButton > button *,
+		div[data-testid="stDownloadButton"] > button * {
+			color: #ffffff !important;
 		}
-		h1, h2, h3 {
-			color: #0f1d19 !important;
-			font-family: 'Inter', -apple-system, sans-serif !important;
-			font-weight: 700 !important;
+
+		.stButton > button:hover,
+		div[data-testid="stDownloadButton"] > button:hover {
+			background-color: #10b981 !important;
+			color: #0d1a16 !important;
+		}
+
+		.stButton > button:hover * {
+			color: #0d1a16 !important;
+		}
+
+		/* 8. Tabs Styling */
+		button[data-baseweb="tab"] * {
+			color: #0d1a16 !important;
+			font-weight: 600 !important;
+		}
+
+		/* 9. Light Dataframes / Tables */
+		div[data-testid="stDataFrame"] {
+			background-color: #ffffff !important;
+			border-radius: 16px !important;
+			padding: 10px !important;
+			border: 1px solid #e1e9e5 !important;
+		}
+
+		/* 10. Welcome Card */
+		.welcome-card {
+			background-color: #ffffff !important;
+			border: 1px solid #e1e9e5 !important;
+			border-radius: 20px !important;
+			padding: 28px 32px !important;
+			box-shadow: 0 4px 20px rgba(0,0,0,0.04) !important;
+			color: #0d1a16 !important;
+			font-size: 1.05rem !important;
+			line-height: 1.6 !important;
 		}
 		</style>
 		""",
 		unsafe_allow_html=True,
 	)
+
+
+st.set_page_config(
+	page_title="Infesights AI",
+	layout="wide",
+	initial_sidebar_state="expanded",
+)
+apply_aeux_theme()
 
 
 @st.cache_data
@@ -111,18 +196,48 @@ def create_dynamic_chart(
 	title_text = f"{col_name} ({chart_type} Chart)"
 	labels = {col_name: col_name, "index": "Timestamp / Record"}
 	if chart_type == "Bar":
-		fig = px.bar(df, y=col_name, title=title_text, labels=labels)
+		fig = px.bar(
+			df,
+			y=col_name,
+			title=title_text,
+			labels=labels,
+			color_discrete_sequence=["#10b981"],
+		)
 	elif chart_type == "Area":
-		fig = px.area(df, y=col_name, title=title_text, labels=labels)
+		fig = px.area(
+			df,
+			y=col_name,
+			title=title_text,
+			labels=labels,
+			color_discrete_sequence=["#10b981"],
+		)
 	else:
-		fig = px.line(df, y=col_name, title=title_text, labels=labels)
+		fig = px.line(
+			df,
+			y=col_name,
+			title=title_text,
+			labels=labels,
+			color_discrete_sequence=["#0d1a16"],
+		)
 
 	fig.update_layout(
-		yaxis_title=col_name,
-		xaxis_title="Time / Order Index",
+		paper_bgcolor="rgba(255,255,255,1)",
+		plot_bgcolor="rgba(245,248,246,0.6)",
+		font=dict(color="#0d1a16", family="Inter"),
+		title=dict(font=dict(color="#0d1a16", size=14, family="Inter")),
+		yaxis=dict(
+			title=dict(text=col_name, font=dict(color="#0d1a16")),
+			tickfont=dict(color="#0d1a16"),
+			gridcolor="#e2ebe6",
+			zerolinecolor="#d1deda",
+		),
+		xaxis=dict(
+			title=dict(text="Time / Order Index", font=dict(color="#0d1a16")),
+			tickfont=dict(color="#0d1a16"),
+			gridcolor="#e2ebe6",
+		),
 		margin=dict(l=20, r=20, t=40, b=20),
 		height=280,
-		template="plotly_dark",
 		showlegend=False,
 	)
 
@@ -134,7 +249,7 @@ def create_dynamic_chart(
 				x=anomaly_frame.index,
 				y=anomaly_frame[col_name],
 				mode="markers",
-				marker=dict(color="Red", size=10, symbol="diamond"),
+				marker=dict(color="#ef4444", size=10, symbol="diamond"),
 				name="Anomaly Event",
 			)
 		)
@@ -226,7 +341,6 @@ def initialize_dataset(
 	st.session_state.alert_status = ""
 	st.session_state.alert_future = None
 	st.session_state.counterfactual_result = None
-	st.session_state.pop("ai_summary_text", None)
 	st.session_state.streaming_active = False
 
 
@@ -386,14 +500,6 @@ def reevaluate_counterfactual(values: dict[str, float]) -> None:
 	st.session_state.counterfactual_result = result
 
 
-st.set_page_config(
-	page_title="Infesights AI — Universal Data Intelligence",
-	layout="wide",
-)
-apply_aeux_theme()
-st.title("Infesights AI — Universal Data Intelligence")
-st.caption("Investigate, monitor, and explain anomalies in any tabular dataset")
-
 st.sidebar.title("Infesights AI")
 st.sidebar.caption("Universal Data & Anomaly Intelligence")
 uploaded_file = st.sidebar.file_uploader(
@@ -404,12 +510,22 @@ uploaded_file = st.sidebar.file_uploader(
 is_live_stream = st.sidebar.toggle("Enable Live Stream Mode", value=False)
 
 if uploaded_file is None and not is_live_stream:
-	st.info("👋 Welcome to Infesights AI!")
-	st.subheader(
-		"Upload a CSV, Excel, or JSON file in the left sidebar to generate instant "
-		"charts and AI anomaly reports."
+	st.markdown("<h1>Dashboard</h1>", unsafe_allow_html=True)
+	st.markdown(
+		"<div class='sub-caption'>Universal Data Intelligence & Automated Anomaly Detection</div>",
+		unsafe_allow_html=True,
 	)
+
+	st.markdown("""
+        <div class='welcome-card'>
+            👋 <b>Welcome to Infesights AI</b><br><br>
+            Upload a <b>CSV, Excel, or JSON</b> dataset in the left sidebar to generate real-time metrics, interactive charts, and plain-English executive reports.
+        </div>
+    """, unsafe_allow_html=True)
 	st.stop()
+
+st.title("Infesights AI — Universal Data Intelligence")
+st.caption("Investigate, monitor, and explain anomalies in any tabular dataset")
 
 try:
 	if uploaded_file is None:
