@@ -1,60 +1,143 @@
 import hashlib
-import os
+from io import BytesIO
 import pandas as pd
+import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
 from core.alerts import dispatch_webhook
 from core.agent import RootCauseAgent
-from core.data_pipeline import create_demo_dataset, load_dataset, prepare_dataset
+from core.data_pipeline import create_demo_dataset, prepare_dataset
 from core.detector import AnomalyDetector
 from core.drift import compare_distributions
-from core.report_export import create_executive_pdf
+from core.report_export import (
+	create_executive_pdf,
+	generate_excel_report,
+	generate_word_report,
+)
 from core.storage import TelemetryStore
 from core.stream_producer import StreamProducer
 
 
-def create_telemetry_chart(
-	df: pd.DataFrame,
-	metric_col: str,
-	title: str,
-) -> go.Figure:
-	fig = go.Figure()
-	fig.add_trace(
-		go.Scatter(
-			x=df["timestamp"],
-			y=df[metric_col],
-			mode="lines",
-			name=metric_col,
-			line=dict(color="#00d2ff", width=2),
-		)
+def apply_aeux_theme() -> None:
+	st.markdown(
+		"""
+		<style>
+		.stApp {
+			background-color: #1a3832 !important;
+		}
+		[data-testid="stMainBlockContainer"] {
+			background-color: #f7f9f8 !important;
+			border-radius: 24px !important;
+			padding: 2.5rem !important;
+			margin-top: 1rem !important;
+			margin-bottom: 1rem !important;
+			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+		}
+		[data-testid="stSidebar"] {
+			background-color: #0b221d !important;
+			color: #ffffff !important;
+		}
+		[data-testid="stSidebar"] * {
+			color: #e0e8e5 !important;
+		}
+		div[data-testid="stMetric"], .aeux-card {
+			background-color: #ffffff !important;
+			border-radius: 16px !important;
+			padding: 18px 22px !important;
+			border: 1px solid #e1e8e5 !important;
+			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03) !important;
+		}
+		[data-testid="stMetricValue"] {
+			color: #0f1d19 !important;
+			font-weight: 700 !important;
+			font-size: 2rem !important;
+		}
+		[data-testid="stMetricLabel"] {
+			color: #5d706a !important;
+			font-size: 0.85rem !important;
+			font-weight: 600 !important;
+			text-transform: uppercase !important;
+			letter-spacing: 0.5px !important;
+		}
+		.stButton > button {
+			background-color: #0f1d19 !important;
+			color: #ffffff !important;
+			border-radius: 10px !important;
+			border: none !important;
+			padding: 10px 20px !important;
+			font-weight: 600 !important;
+			transition: all 0.2s ease !important;
+		}
+		.stButton > button:hover {
+			background-color: #20e070 !important;
+			color: #0f1d19 !important;
+		}
+		h1, h2, h3 {
+			color: #0f1d19 !important;
+			font-family: 'Inter', -apple-system, sans-serif !important;
+			font-weight: 700 !important;
+		}
+		</style>
+		""",
+		unsafe_allow_html=True,
 	)
 
-	if "is_anomaly" in df.columns:
-		anomaly_df = df[df["is_anomaly"] == True]
-		if not anomaly_df.empty:
-			fig.add_trace(
-				go.Scatter(
-					x=anomaly_df["timestamp"],
-					y=anomaly_df[metric_col],
-					mode="markers",
-					name="Anomaly Detected",
-					marker=dict(
-						color="#ff2a5f",
-						size=10,
-						symbol="diamond",
-						line=dict(width=1, color="white"),
-					),
-				)
-			)
+
+@st.cache_data
+def load_data(file_data: bytes, filename: str) -> pd.DataFrame | None:
+	file = BytesIO(file_data)
+	filename = filename.lower()
+	if filename.endswith(".csv"):
+		try:
+			return pd.read_csv(file)
+		except UnicodeDecodeError:
+			file.seek(0)
+			return pd.read_csv(file, encoding="ISO-8859-1")
+	if filename.endswith((".xlsx", ".xls")):
+		return pd.read_excel(file)
+	if filename.endswith(".json"):
+		return pd.read_json(file)
+	return None
+
+
+def create_dynamic_chart(
+	df: pd.DataFrame,
+	col_name: str,
+	chart_type: str = "Line",
+	anomaly_indices: list[int] | None = None,
+) -> go.Figure:
+	"""Render a Plotly chart using the actual dataset column name."""
+	title_text = f"{col_name} ({chart_type} Chart)"
+	labels = {col_name: col_name, "index": "Timestamp / Record"}
+	if chart_type == "Bar":
+		fig = px.bar(df, y=col_name, title=title_text, labels=labels)
+	elif chart_type == "Area":
+		fig = px.area(df, y=col_name, title=title_text, labels=labels)
+	else:
+		fig = px.line(df, y=col_name, title=title_text, labels=labels)
 
 	fig.update_layout(
-		title=f"<b>{title}</b>",
-		margin=dict(l=10, r=10, t=35, b=10),
+		yaxis_title=col_name,
+		xaxis_title="Time / Order Index",
+		margin=dict(l=20, r=20, t=40, b=20),
 		height=280,
 		template="plotly_dark",
 		showlegend=False,
 	)
+
+	anomaly_indices = anomaly_indices or []
+	if anomaly_indices:
+		anomaly_frame = df.iloc[anomaly_indices]
+		fig.add_trace(
+			go.Scatter(
+				x=anomaly_frame.index,
+				y=anomaly_frame[col_name],
+				mode="markers",
+				marker=dict(color="Red", size=10, symbol="diamond"),
+				name="Anomaly Event",
+			)
+		)
 	return fig
 
 
@@ -143,6 +226,7 @@ def initialize_dataset(
 	st.session_state.alert_status = ""
 	st.session_state.alert_future = None
 	st.session_state.counterfactual_result = None
+	st.session_state.pop("ai_summary_text", None)
 	st.session_state.streaming_active = False
 
 
@@ -184,6 +268,26 @@ def investigate_event(
 		store.get_recent_telemetry(limit=40),
 		sql_results=query_result if query else None,
 	)
+
+
+def ensure_ai_summary(
+	dataset_name: str,
+	records_count: int,
+	anomaly_count: int,
+) -> None:
+	if anomaly_count <= 0 or "ai_summary_text" in st.session_state:
+		return
+
+	with st.spinner("Generating plain-English executive summary..."):
+		summary_prompt = (
+			"Write a crisp, 3-bullet-point executive summary for a non-technical "
+			f"business user. The dataset '{dataset_name}' has {records_count} "
+			f"records and {anomaly_count} flagged anomalies. Explain in everyday "
+			"language what metrics spiked, why it matters, and what action to take."
+		)
+		st.session_state.ai_summary_text = st.session_state.agent.diagnose_simple(
+			summary_prompt
+		)
 
 
 def process_next_point() -> None:
@@ -236,6 +340,11 @@ def process_next_point() -> None:
 	st.toast("Anomaly detected in the ingested data", icon="⚠️")
 	with st.spinner("Preparing an evidence-based data-domain assessment..."):
 		st.session_state.latest_report = investigate_event(anomaly_event, baseline_stats)
+	ensure_ai_summary(
+		st.session_state.dataset_name,
+		st.session_state.records_count,
+		len(store.get_open_incidents()),
+	)
 	threshold = result["alert_threshold"]
 	if result["confidence"] >= threshold:
 		alert_id = str(point["timestamp"])
@@ -281,12 +390,26 @@ st.set_page_config(
 	page_title="Infesights AI — Universal Data Intelligence",
 	layout="wide",
 )
+apply_aeux_theme()
 st.title("Infesights AI — Universal Data Intelligence")
 st.caption("Investigate, monitor, and explain anomalies in any tabular dataset")
 
 st.sidebar.title("Infesights AI")
-st.sidebar.caption("Dynamic Schema Ingestion")
-uploaded_file = st.sidebar.file_uploader("Upload CSV or JSON", type=["csv", "json"])
+st.sidebar.caption("Universal Data & Anomaly Intelligence")
+uploaded_file = st.sidebar.file_uploader(
+	"Upload Dataset",
+	type=["csv", "xlsx", "xls", "json"],
+	help="Support for CSV, Excel (.xlsx), and JSON tabular datasets.",
+)
+is_live_stream = st.sidebar.toggle("Enable Live Stream Mode", value=False)
+
+if uploaded_file is None and not is_live_stream:
+	st.info("👋 Welcome to Infesights AI!")
+	st.subheader(
+		"Upload a CSV, Excel, or JSON file in the left sidebar to generate instant "
+		"charts and AI anomaly reports."
+	)
+	st.stop()
 
 try:
 	if uploaded_file is None:
@@ -296,7 +419,9 @@ try:
 		signature = "demo-orders-v1"
 	else:
 		file_data = uploaded_file.getvalue()
-		source_frame = load_dataset(file_data, uploaded_file.name)
+		source_frame = load_data(file_data, uploaded_file.name)
+		if source_frame is None:
+			raise ValueError("Upload a CSV, Excel, or JSON file")
 		signature = hashlib.sha256(file_data).hexdigest()
 	prepared_frame, numeric_features = prepare_dataset(source_frame)
 	if len(prepared_frame) < 2:
@@ -307,24 +432,20 @@ except Exception as error:
 	st.stop()
 
 initialize_dataset(prepared_frame, numeric_features, signature)
+st.session_state.dataset_name = uploaded_file.name if uploaded_file else "Live Demo Dataset"
+st.session_state.records_count = len(prepared_frame)
+ensure_ai_summary(
+	st.session_state.dataset_name,
+	st.session_state.records_count,
+	len(st.session_state.store.get_open_incidents()),
+)
 
-with st.sidebar.expander("⚙️ Streaming & Replay Controls", expanded=True):
-	st.toggle("Live stream mode", key="streaming_active")
-	st.caption(
-		"Static uploads run batch detection immediately. Live mode ingests rows automatically."
-	)
-	interval = 0.8
+interval = 0.8
 
-with st.sidebar.expander("🔔 Webhook & Alerting", expanded=False):
-	st.caption("Alert confidence is calibrated from the top 2% of baseline deviations.")
-	if os.getenv("INFESIGHTS_WEBHOOK_URL"):
-		st.caption("Webhook dispatcher configured")
-	else:
-		st.caption("Set INFESIGHTS_WEBHOOK_URL to enable notifications")
-
+st.session_state.streaming_active = is_live_stream
 st.sidebar.caption(f"{len(prepared_frame):,} rows · {len(numeric_features)} numeric features")
 
-streaming_active = st.session_state.streaming_active
+streaming_active = is_live_stream
 
 
 @st.fragment(run_every=interval if streaming_active else None)
@@ -347,6 +468,42 @@ def render_dashboard() -> None:
 	summary_columns[0].metric("Records loaded", f"{len(prepared_frame):,}")
 	summary_columns[1].metric("Numeric features", len(numeric_features))
 	summary_columns[2].metric("Anomaly events", len(store.get_open_incidents()))
+
+	st.markdown("<br>", unsafe_allow_html=True)
+	anomaly_count = len(store.get_open_incidents())
+	anomaly_rate = min(anomaly_count / max(len(prepared_frame), 1), 1.0)
+	middle_columns = st.columns([1, 1, 2])
+	with middle_columns[0]:
+		st.subheader("Anomaly Load")
+		st.metric("Flagged records", f"{anomaly_count:,}")
+		st.progress(anomaly_rate)
+		st.caption(f"{anomaly_rate:.1%} of loaded records flagged")
+
+	with middle_columns[1]:
+		st.subheader("Stream Health")
+		st.metric(
+			"Status",
+			"Live" if st.session_state.streaming_active else "Ready",
+		)
+		st.caption(f"Monitoring {len(numeric_features)} numeric metrics")
+		st.caption("🟢 Detector baseline calibrated")
+
+	with middle_columns[2]:
+		st.subheader("Feature Baseline Overview")
+		baseline_values = prepared_frame[numeric_features].mean().sort_values(ascending=False)
+		baseline_figure = px.bar(
+			x=baseline_values.index,
+			y=baseline_values.values,
+			labels={"x": "Metric", "y": "Baseline average"},
+			color_discrete_sequence=["#20e070"],
+		)
+		baseline_figure.update_layout(
+			paper_bgcolor="rgba(0,0,0,0)",
+			plot_bgcolor="rgba(0,0,0,0)",
+			margin=dict(l=10, r=10, t=20, b=20),
+			height=230,
+		)
+		st.plotly_chart(baseline_figure, width="stretch")
 
 	live_tab, drift_tab = st.tabs(["Live analysis", "Feature drift"])
 	with live_tab:
@@ -417,20 +574,42 @@ def render_dashboard() -> None:
 					)
 
 		st.subheader("Dynamic feature streams")
+		numeric_cols = prepared_frame.select_dtypes(include=["number"]).columns.tolist()
+		numeric_cols = [
+			column
+			for column in numeric_cols
+			if not any(
+				id_word in column.lower() for id_word in ["id", "code", "zip"]
+			)
+		]
+		chart_type = st.selectbox(
+			"Chart type",
+			["Line", "Bar", "Area"],
+			key=f"chart_type_{signature}",
+		)
 		chart_columns = st.columns(2)
-		for index, feature in enumerate(numeric_features):
-			feature_data = recent_df[recent_df["feature_name"] == feature].copy()
-			if feature_data.empty:
-				continue
-			feature_data["is_anomaly"] = feature_data["timestamp"].isin(
-				st.session_state.anomaly_points.get(feature, set())
-			)
-			figure = create_telemetry_chart(
-				feature_data,
-				"metric_value",
-				feature.replace("_", " ").title(),
-			)
-			chart_columns[index % 2].plotly_chart(figure, width="stretch")
+		for index, column in enumerate(numeric_cols):
+			with chart_columns[index % 2]:
+				feature_data = recent_df[
+					recent_df["feature_name"] == column
+				].copy()
+				if feature_data.empty:
+					continue
+				feature_data.reset_index(drop=True, inplace=True)
+				feature_data["is_anomaly"] = feature_data["timestamp"].isin(
+					st.session_state.anomaly_points.get(column, set())
+				)
+				anomaly_indices = feature_data.index[
+					feature_data["is_anomaly"]
+				].tolist()
+				chart_data = feature_data.rename(columns={"metric_value": column})
+				figure = create_dynamic_chart(
+					chart_data,
+					col_name=column,
+					chart_type=chart_type,
+					anomaly_indices=anomaly_indices,
+				)
+				st.plotly_chart(figure, width="stretch")
 
 		with st.expander("Latest ingested row"):
 			st.json(latest, expanded=True)
@@ -451,6 +630,34 @@ def render_dashboard() -> None:
 				data=incidents.to_csv(index=False).encode("utf-8"),
 				file_name="infesights_anomalies.csv",
 				mime="text/csv",
+			)
+
+		st.markdown("---")
+		st.subheader("Download Reports")
+		col_dl1, col_dl2 = st.columns(2)
+		anomaly_df = incidents
+		ai_summary_text = st.session_state.get("ai_summary_text") or st.session_state.latest_report or (
+			"No AI anomaly summary has been generated yet."
+		)
+
+		with col_dl1:
+			excel_bytes = generate_excel_report(prepared_frame, anomaly_df)
+			st.download_button(
+				label="📊 Download Excel Report (.xlsx)",
+				data=excel_bytes,
+				file_name="Infesights_Data_Report.xlsx",
+				mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+				key=f"analysis_excel_{signature}",
+			)
+
+		with col_dl2:
+			word_bytes = generate_word_report(ai_summary_text, anomaly_df)
+			st.download_button(
+				label="📄 Download Executive Word Report (.docx)",
+				data=word_bytes,
+				file_name="Infesights_Executive_Report.docx",
+				mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+				key=f"analysis_word_{signature}",
 			)
 
 	with drift_tab:

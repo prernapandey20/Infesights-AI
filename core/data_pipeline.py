@@ -45,7 +45,9 @@ def load_dataset(data: bytes, filename: str) -> pd.DataFrame:
 		if not isinstance(payload, (dict, list)):
 			raise ValueError("JSON must contain an object or an array of records")
 		return pd.DataFrame(payload)
-	raise ValueError("Upload a CSV or JSON file")
+	if filename.lower().endswith((".xlsx", ".xls")):
+		return pd.read_excel(BytesIO(data))
+	raise ValueError("Upload a CSV, Excel, or JSON file")
 
 
 def prepare_dataset(frame: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:

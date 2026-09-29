@@ -88,6 +88,32 @@ Write so that a non-technical business manager or everyday user can instantly un
 				return f"Diagnostic agent error: {last_error}"
 			return f"Diagnostic agent error: {error}"
 
+	def diagnose_simple(self, summary_prompt: str) -> str:
+		"""Generate a short, plain-English executive summary."""
+		self._refresh_configuration()
+		if self.client is None:
+			return "Diagnostic agent unavailable: GROQ_API_KEY is not configured."
+
+		system_prompt = (
+			"You are a business intelligence advisor. Write exactly three concise "
+			"bullet points in plain English for a non-technical business user. "
+			"Explain what changed, why it matters, and what action to take."
+		)
+		try:
+			return self._complete(system_prompt, summary_prompt, self.PRIMARY_MODEL)
+		except Exception as error:
+			if self._is_auth_error(error):
+				return "Diagnostic agent unavailable: Groq rejected GROQ_API_KEY. Verify the configured API key."
+			if isinstance(error, RateLimitError) or self._is_model_unavailable(error):
+				last_error = error
+				for model in (self.FALLBACK_MODEL, self.AVAILABLE_FALLBACK_MODEL):
+					try:
+						return self._complete(system_prompt, summary_prompt, model)
+					except Exception as fallback_error:
+						last_error = fallback_error
+				return f"Diagnostic agent error: {last_error}"
+			return f"Diagnostic agent error: {error}"
+
 	def generate_investigation_query(
 		self,
 		anomaly_event: dict[str, Any],
