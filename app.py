@@ -23,7 +23,7 @@ def apply_aeux_theme() -> None:
 	st.markdown(
 		"""
 		<style>
-		/* 1. Global Outer Slate Canvas */
+		/* 1. Global Canvas */
 		.stApp {
 			background-color: #0b1f1a !important;
 		}
@@ -32,13 +32,11 @@ def apply_aeux_theme() -> None:
 			background-color: transparent !important;
 		}
 
-		/* 2. Main Outer Spacing for Card Margins */
 		[data-testid="stMain"] {
 			background-color: #0b1f1a !important;
 			padding: 1.5rem 2.5rem !important;
 		}
 
-		/* 3. Off-White Floating Card Container */
 		[data-testid="stMainBlockContainer"] {
 			background-color: #f5f8f6 !important;
 			border-radius: 28px !important;
@@ -48,7 +46,7 @@ def apply_aeux_theme() -> None:
 			box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35) !important;
 		}
 
-		/* 4. Left Sidebar Clean Emerald */
+		/* 2. Left Sidebar */
 		[data-testid="stSidebar"] {
 			background-color: #0b1f1a !important;
 			border-right: none !important;
@@ -58,102 +56,83 @@ def apply_aeux_theme() -> None:
 			color: #d1deda !important;
 		}
 
-		/* 5. Custom Sidebar File Uploader */
-		[data-testid="stFileUploader"] {
-			background-color: #123129 !important;
-			border: 1px dashed #245043 !important;
-			border-radius: 16px !important;
-			padding: 10px !important;
-		}
-
-		/* 6. Pure White Metric Cards */
-		div[data-testid="stMetric"], .aeux-card {
-			background-color: #ffffff !important;
-			border-radius: 20px !important;
-			padding: 22px 26px !important;
-			border: 1px solid #e1e9e5 !important;
-			box-shadow: 0 4px 18px rgba(0, 0, 0, 0.03) !important;
-		}
-
-		[data-testid="stMetricValue"], [data-testid="stMetricValue"] * {
-			color: #0d1a16 !important;
-			font-weight: 800 !important;
-			font-size: 2.2rem !important;
-		}
-
-		[data-testid="stMetricLabel"], [data-testid="stMetricLabel"] * {
-			color: #5c726a !important;
-			font-weight: 700 !important;
-			font-size: 0.85rem !important;
-			letter-spacing: 0.5px !important;
-		}
-
-		/* 7. Typography Fixes */
+		/* 3. Typography */
 		[data-testid="stMain"] h1,
 		[data-testid="stMain"] h2,
 		[data-testid="stMain"] h3,
 		[data-testid="stMain"] h4,
 		[data-testid="stMain"] h5,
 		[data-testid="stMain"] p,
-		[data-testid="stMain"] span,
 		[data-testid="stMain"] label,
-		[data-testid="stMain"] div[data-testid="stMarkdownContainer"] *,
-		[data-testid="stMain"] [data-testid="stCaptionContainer"] * {
+		[data-testid="stMain"] div[data-testid="stMarkdownContainer"] * {
 			color: #0d1a16 !important;
 			font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
 		}
 
-		/* 8. Fix Unreadable Download / Action Buttons */
-		.stButton > button,
-		div[data-testid="stDownloadButton"] > button {
+		/* 4. Expander Container & Headers */
+		div[data-testid="stExpander"] {
+			background-color: #ffffff !important;
+			border: 1px solid #e1e9e5 !important;
+			border-radius: 16px !important;
+			margin-bottom: 12px !important;
+		}
+
+		div[data-testid="stExpander"] summary {
+			background-color: #f0f5f3 !important;
+			border-radius: 16px !important;
+			padding: 12px 18px !important;
+		}
+
+		div[data-testid="stExpander"] summary * {
+			color: #0d1a16 !important;
+			font-weight: 700 !important;
+		}
+
+		/* 5. FIX DOWNLOAD BUTTONS TEXT VISIBILITY */
+		button, 
+		.stButton > button, 
+		div[data-testid="stDownloadButton"] > button,
+		button[data-testid="baseButton-secondary"],
+		button[data-testid="baseButton-primary"] {
 			background-color: #0d1a16 !important;
 			color: #ffffff !important;
 			border-radius: 12px !important;
-			border: none !important;
+			border: 1px solid #0d1a16 !important;
 			padding: 12px 24px !important;
-			font-weight: 600 !important;
-			transition: all 0.2s ease !important;
+			font-weight: 700 !important;
+			font-size: 0.95rem !important;
+			box-shadow: 0 4px 12px rgba(13, 26, 22, 0.25) !important;
 		}
 
-		.stButton > button *,
-		div[data-testid="stDownloadButton"] > button * {
+		button *, 
+		.stButton > button *, 
+		div[data-testid="stDownloadButton"] > button *,
+		div[data-testid="stDownloadButton"] button div,
+		div[data-testid="stDownloadButton"] button p,
+		div[data-testid="stDownloadButton"] button span {
 			color: #ffffff !important;
+			fill: #ffffff !important;
+			font-weight: 700 !important;
 		}
 
-		.stButton > button:hover,
+		button:hover, 
+		.stButton > button:hover, 
 		div[data-testid="stDownloadButton"] > button:hover {
 			background-color: #10b981 !important;
-			color: #0d1a16 !important;
+			border-color: #10b981 !important;
 		}
 
-		.stButton > button:hover * {
+		button:hover *, 
+		.stButton > button:hover *, 
+		div[data-testid="stDownloadButton"] > button:hover * {
 			color: #0d1a16 !important;
+			fill: #0d1a16 !important;
 		}
 
-		/* 8. Tabs Styling */
-		button[data-baseweb="tab"] * {
-			color: #0d1a16 !important;
-			font-weight: 600 !important;
-		}
-
-		/* 9. Light Dataframes / Tables */
-		div[data-testid="stDataFrame"] {
-			background-color: #ffffff !important;
-			border-radius: 16px !important;
-			padding: 10px !important;
-			border: 1px solid #e1e9e5 !important;
-		}
-
-		/* 10. Welcome Card */
-		.welcome-card {
-			background-color: #ffffff !important;
-			border: 1px solid #e1e9e5 !important;
-			border-radius: 20px !important;
-			padding: 28px 32px !important;
-			box-shadow: 0 4px 20px rgba(0,0,0,0.04) !important;
-			color: #0d1a16 !important;
-			font-size: 1.05rem !important;
-			line-height: 1.6 !important;
+		/* 6. Code & JSON Containers */
+		.stCodeBlock, div[data-testid="stCodeBlock"] {
+			border-radius: 12px !important;
+			overflow: hidden !important;
 		}
 		</style>
 		""",
@@ -728,7 +707,9 @@ def render_dashboard() -> None:
 				st.plotly_chart(figure, width="stretch")
 
 		with st.expander("Latest ingested row"):
-			st.json(latest, expanded=True)
+			import json
+			formatted_json = json.dumps(latest, indent=4, default=str)
+			st.code(formatted_json, language="json")
 		with st.expander("Dataset preview"):
 			st.dataframe(prepared_frame.head(20), width="stretch")
 
