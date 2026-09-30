@@ -1,5 +1,6 @@
 import hashlib
 from io import BytesIO
+import json
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -23,7 +24,7 @@ def apply_aeux_theme() -> None:
 	st.markdown(
 		"""
 		<style>
-		/* 1. Global Canvas */
+		/* 1. Global Outer Canvas */
 		.stApp {
 			background-color: #0b1f1a !important;
 		}
@@ -37,6 +38,7 @@ def apply_aeux_theme() -> None:
 			padding: 1.5rem 2.5rem !important;
 		}
 
+		/* 2. Off-White Floating Container Card */
 		[data-testid="stMainBlockContainer"] {
 			background-color: #f5f8f6 !important;
 			border-radius: 28px !important;
@@ -46,7 +48,7 @@ def apply_aeux_theme() -> None:
 			box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35) !important;
 		}
 
-		/* 2. Left Sidebar */
+		/* 3. Left Sidebar Clean Emerald */
 		[data-testid="stSidebar"] {
 			background-color: #0b1f1a !important;
 			border-right: none !important;
@@ -56,83 +58,127 @@ def apply_aeux_theme() -> None:
 			color: #d1deda !important;
 		}
 
-		/* 3. Typography */
+		/* 4. RESTORE PURE WHITE FLOATING METRIC CARDS */
+		div[data-testid="stMetric"], .aeux-card {
+			background-color: #ffffff !important;
+			border-radius: 20px !important;
+			padding: 22px 26px !important;
+			border: 1px solid #e1e9e5 !important;
+			box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04) !important;
+		}
+
+		[data-testid="stMetricValue"], [data-testid="stMetricValue"] * {
+			color: #0d1a16 !important;
+			font-weight: 800 !important;
+			font-size: 2.2rem !important;
+		}
+
+		[data-testid="stMetricLabel"], [data-testid="stMetricLabel"] * {
+			color: #5c726a !important;
+			font-weight: 700 !important;
+			font-size: 0.85rem !important;
+			letter-spacing: 0.5px !important;
+		}
+
+		/* 5. Typography (Excluding Buttons) */
 		[data-testid="stMain"] h1,
 		[data-testid="stMain"] h2,
 		[data-testid="stMain"] h3,
 		[data-testid="stMain"] h4,
 		[data-testid="stMain"] h5,
-		[data-testid="stMain"] p,
+		[data-testid="stMain"] p:not(button p),
 		[data-testid="stMain"] label,
-		[data-testid="stMain"] div[data-testid="stMarkdownContainer"] * {
+		[data-testid="stMain"] [data-testid="stCaptionContainer"] * {
 			color: #0d1a16 !important;
 			font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
 		}
 
-		/* 4. Expander Container & Headers */
+		/* 6. EXPANDER HEADER & CONTAINER STYLING */
 		div[data-testid="stExpander"] {
 			background-color: #ffffff !important;
 			border: 1px solid #e1e9e5 !important;
 			border-radius: 16px !important;
 			margin-bottom: 12px !important;
+			box-shadow: 0 4px 14px rgba(0,0,0,0.02) !important;
 		}
 
 		div[data-testid="stExpander"] summary {
-			background-color: #f0f5f3 !important;
+			background-color: #ffffff !important;
 			border-radius: 16px !important;
-			padding: 12px 18px !important;
+			padding: 14px 20px !important;
 		}
 
-		div[data-testid="stExpander"] summary * {
+		div[data-testid="stExpander"] summary span {
 			color: #0d1a16 !important;
 			font-weight: 700 !important;
+			font-size: 1rem !important;
 		}
 
-		/* 5. FIX DOWNLOAD BUTTONS TEXT VISIBILITY */
-		button, 
-		.stButton > button, 
+		/* 7. STRICT BUTTON & DOWNLOAD BUTTON TEXT VISIBILITY FIX */
+		div[data-testid="stDownloadButton"],
 		div[data-testid="stDownloadButton"] > button,
-		button[data-testid="baseButton-secondary"],
-		button[data-testid="baseButton-primary"] {
+		.stButton,
+		.stButton > button {
 			background-color: #0d1a16 !important;
-			color: #ffffff !important;
 			border-radius: 12px !important;
-			border: 1px solid #0d1a16 !important;
+			border: none !important;
 			padding: 12px 24px !important;
+			box-shadow: 0 4px 14px rgba(13, 26, 22, 0.2) !important;
+		}
+
+		/* Target every single nested element inside download/standard buttons to force white color */
+		div[data-testid="stDownloadButton"] *,
+		div[data-testid="stDownloadButton"] button *,
+		div[data-testid="stDownloadButton"] p,
+		div[data-testid="stDownloadButton"] span,
+		div[data-testid="stDownloadButton"] div,
+		div[data-testid="stDownloadButton"] label,
+		.stButton *,
+		.stButton button *,
+		.stButton p,
+		.stButton span,
+		.stButton div,
+		.stButton label {
+			color: #ffffff !important;
 			font-weight: 700 !important;
 			font-size: 0.95rem !important;
-			box-shadow: 0 4px 12px rgba(13, 26, 22, 0.25) !important;
 		}
 
-		button *, 
-		.stButton > button *, 
-		div[data-testid="stDownloadButton"] > button *,
-		div[data-testid="stDownloadButton"] button div,
-		div[data-testid="stDownloadButton"] button p,
-		div[data-testid="stDownloadButton"] button span {
-			color: #ffffff !important;
-			fill: #ffffff !important;
-			font-weight: 700 !important;
-		}
-
-		button:hover, 
-		.stButton > button:hover, 
-		div[data-testid="stDownloadButton"] > button:hover {
+		/* Hover States */
+		div[data-testid="stDownloadButton"] > button:hover,
+		.stButton > button:hover {
 			background-color: #10b981 !important;
-			border-color: #10b981 !important;
 		}
 
-		button:hover *, 
-		.stButton > button:hover *, 
-		div[data-testid="stDownloadButton"] > button:hover * {
+		div[data-testid="stDownloadButton"] > button:hover *,
+		.stButton > button:hover * {
 			color: #0d1a16 !important;
-			fill: #0d1a16 !important;
 		}
 
-		/* 6. Code & JSON Containers */
-		.stCodeBlock, div[data-testid="stCodeBlock"] {
-			border-radius: 12px !important;
-			overflow: hidden !important;
+		/* 8. Tabs Styling */
+		button[data-baseweb="tab"] * {
+			color: #0d1a16 !important;
+			font-weight: 600 !important;
+		}
+
+		/* 9. Light Dataframes / Tables */
+		div[data-testid="stDataFrame"] {
+			background-color: #ffffff !important;
+			border-radius: 16px !important;
+			padding: 10px !important;
+			border: 1px solid #e1e9e5 !important;
+		}
+
+		/* 10. Welcome Card */
+		.welcome-card {
+			background-color: #ffffff !important;
+			border: 1px solid #e1e9e5 !important;
+			border-radius: 20px !important;
+			padding: 28px 32px !important;
+			box-shadow: 0 4px 20px rgba(0,0,0,0.04) !important;
+			color: #0d1a16 !important;
+			font-size: 1.05rem !important;
+			line-height: 1.6 !important;
 		}
 		</style>
 		""",
@@ -371,13 +417,28 @@ def ensure_ai_summary(
 	if anomaly_count <= 0 or "ai_summary_text" in st.session_state:
 		return
 
+	# Extract top actual flagged anomalies from TelemetryStore
+	incidents = st.session_state.store.get_recent_incidents(limit=10)
+	if incidents.empty:
+		return
+
+	formatted_incidents = incidents[
+		['metric_name', 'anomalous_value', 'baseline_mean', 'confidence_score']
+	].to_string(index=False)
+
 	with st.spinner("Generating plain-English executive summary..."):
-		summary_prompt = (
-			"Write a crisp, 3-bullet-point executive summary for a non-technical "
-			f"business user. The dataset '{dataset_name}' has {records_count} "
-			f"records and {anomaly_count} flagged anomalies. Explain in everyday "
-			"language what metrics spiked, why it matters, and what action to take."
-		)
+		summary_prompt = f"""
+		Analyze these top flagged data anomalies from dataset '{dataset_name}':
+
+		{formatted_incidents}
+
+		Write a strict, data-grounded 3-bullet-point executive summary:
+		1. Point 1: Highlight exact metric spikes/drops with exact numbers from the data.
+		2. Point 2: State the business/financial impact of these specific anomalies.
+		3. Point 3: Recommend concrete audit/action steps.
+
+		RULES: Do NOT invent quarters (e.g. Q1/Q3), dates, or percentage changes not provided in the data table above.
+		"""
 		st.session_state.ai_summary_text = st.session_state.agent.diagnose_simple(
 			summary_prompt
 		)
@@ -590,13 +651,25 @@ def render_dashboard() -> None:
 			x=baseline_values.index,
 			y=baseline_values.values,
 			labels={"x": "Metric", "y": "Baseline average"},
-			color_discrete_sequence=["#20e070"],
+			color_discrete_sequence=["#10b981"],
 		)
 		baseline_figure.update_layout(
 			paper_bgcolor="rgba(0,0,0,0)",
 			plot_bgcolor="rgba(0,0,0,0)",
-			margin=dict(l=10, r=10, t=20, b=20),
-			height=230,
+			font=dict(color="#0d1a16", family="Inter", size=11),
+			margin=dict(l=10, r=10, t=20, b=30),
+			height=240,
+			yaxis=dict(
+				title=dict(text="Baseline average", font=dict(color="#0d1a16", size=11)),
+				tickfont=dict(color="#0d1a16", size=10),
+				gridcolor="#e2ebe6",
+				zerolinecolor="#d1deda",
+			),
+			xaxis=dict(
+				title=dict(text="Metric", font=dict(color="#0d1a16", size=11)),
+				tickfont=dict(color="#0d1a16", size=10),
+				gridcolor="#e2ebe6",
+			),
 		)
 		st.plotly_chart(baseline_figure, width="stretch")
 
@@ -707,9 +780,9 @@ def render_dashboard() -> None:
 				st.plotly_chart(figure, width="stretch")
 
 		with st.expander("Latest ingested row"):
-			import json
 			formatted_json = json.dumps(latest, indent=4, default=str)
 			st.code(formatted_json, language="json")
+
 		with st.expander("Dataset preview"):
 			st.dataframe(prepared_frame.head(20), width="stretch")
 
