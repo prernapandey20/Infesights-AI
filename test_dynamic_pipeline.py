@@ -1,5 +1,6 @@
 import unittest
 from datetime import datetime, timedelta
+from io import BytesIO
 from threading import Event
 from unittest.mock import patch
 
@@ -42,14 +43,37 @@ class DynamicPipelineTests(unittest.TestCase):
 			}
 		)
 
-		_, features = prepare_dataset(frame)
+		prepared, features = prepare_dataset(frame)
 
 		self.assertEqual(features, ["order_value"])
+		self.assertEqual(list(prepared.columns), ["timestamp", "order_value"])
 
 	def test_legacy_csv_falls_back_to_latin1(self) -> None:
 		frame = load_dataset(b"name\nAndr\xe9\n", "legacy.csv")
 
 		self.assertEqual(frame.loc[0, "name"], "Andr\u00e9")
+
+	def test_sales_data_excel_sheet_uses_offset_header_and_drops_totals(self) -> None:
+		workbook = BytesIO()
+		with pd.ExcelWriter(workbook, engine="openpyxl") as writer:
+			pd.DataFrame(
+				[
+					["metadata", None, None],
+					["metadata", None, None],
+					["Num", "timestamp", "order_value"],
+					[1, "2026-01-01", 12.5],
+					["Total", None, 12.5],
+				]
+			).to_excel(writer, sheet_name="Sales Data", header=False, index=False)
+			pd.DataFrame({"value": [99]}).to_excel(
+				writer, sheet_name="Notes", index=False
+			)
+
+		frame = load_dataset(workbook.getvalue(), "sales.xlsx")
+
+		self.assertEqual(list(frame.columns), ["Num", "timestamp", "order_value"])
+		self.assertEqual(len(frame), 1)
+		self.assertEqual(frame.loc[0, "order_value"], 12.5)
 
 	def test_datetime_columns_are_not_numeric_features(self) -> None:
 		frame = pd.DataFrame(

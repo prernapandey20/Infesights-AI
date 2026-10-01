@@ -8,7 +8,7 @@ import streamlit as st
 
 from core.alerts import dispatch_webhook
 from core.agent import RootCauseAgent
-from core.data_pipeline import create_demo_dataset, prepare_dataset
+from core.data_pipeline import create_demo_dataset, load_dataset, prepare_dataset
 from core.detector import AnomalyDetector
 from core.drift import compare_distributions
 from core.report_export import (
@@ -196,18 +196,9 @@ apply_aeux_theme()
 
 @st.cache_data
 def load_data(file_data: bytes, filename: str) -> pd.DataFrame | None:
-	file = BytesIO(file_data)
 	filename = filename.lower()
-	if filename.endswith(".csv"):
-		try:
-			return pd.read_csv(file)
-		except UnicodeDecodeError:
-			file.seek(0)
-			return pd.read_csv(file, encoding="ISO-8859-1")
-	if filename.endswith((".xlsx", ".xls")):
-		return pd.read_excel(file)
-	if filename.endswith(".json"):
-		return pd.read_json(file)
+	if filename.endswith((".csv", ".xlsx", ".xls", ".json")):
+		return load_dataset(file_data, filename)
 	return None
 
 

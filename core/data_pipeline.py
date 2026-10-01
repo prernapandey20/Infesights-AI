@@ -46,7 +46,18 @@ def load_dataset(data: bytes, filename: str) -> pd.DataFrame:
 			raise ValueError("JSON must contain an object or an array of records")
 		return pd.DataFrame(payload)
 	if filename.lower().endswith((".xlsx", ".xls")):
-		return pd.read_excel(BytesIO(data))
+		workbook = pd.ExcelFile(BytesIO(data))
+		if "Sales Data" in workbook.sheet_names:
+			frame = pd.read_excel(workbook, sheet_name="Sales Data", header=2)
+		else:
+			frame = pd.read_excel(workbook)
+		if "Num" in frame.columns:
+			frame = frame[
+				~frame["Num"].astype(str).str.contains(
+					"Total", case=False, na=False
+				)
+			]
+		return frame
 	raise ValueError("Upload a CSV, Excel, or JSON file")
 
 
@@ -94,6 +105,7 @@ def prepare_dataset(frame: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
 
 	if not numeric_features:
 		raise ValueError("No numerical columns were found in the dataset")
+	prepared = prepared[["timestamp", *numeric_features]]
 	prepared["timestamp"] = pd.to_datetime(prepared["timestamp"]).dt.to_pydatetime()
 	return prepared, numeric_features
 
